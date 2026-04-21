@@ -73,5 +73,68 @@ def analyze(
     except Exception as e:
         typer.echo(f"[!] Analysis failed: {e}")
 
+@app.command()
+def auto(
+    command: str,
+    goal: str = "Explore the TUI and eventually exit",
+    max_steps: int = 5,
+    width: int = 80,
+    height: int = 24,
+    wait: float = 1.5 if os.name == "nt" else 1.0,
+):
+    """
+    Autonomous TUI exploration using rule-based semantic analysis.
+    """
+    from .semantic import SemanticAnalyzer
+    from .controller import TUIController
+    
+    cmd_list = command.split()
+    controller = TUIController(width, height)
+    analyzer = SemanticAnalyzer()
+    history = []
+    
+    try:
+        typer.echo(f"[*] Starting Auto-Session: {command}")
+        typer.echo(f"[*] Goal: {goal}")
+        controller.spawn(cmd_list)
+        
+        # Initial wait
+        controller.drain(timeout=wait)
+        
+        for step in range(1, max_steps + 1):
+            screen_text = controller.screen.get_text_content()
+            key = analyzer.decide_next_action(screen_text, goal=goal, history=history)
+            
+            # Save progress screenshot
+            shot_path = f"auto_step_{step}.png"
+            controller.save_screenshot(shot_path)
+            typer.echo(f"[Step {step}] Screenshot: {shot_path}")
+            
+            if not key:
+                typer.echo("[*] No more logical actions identified. Stopping.")
+                break
+                
+            typer.echo(f"[Step {step}] Decision: Press '{key}'")
+            controller.send_key(key)
+            history.append(key)
+            
+            # Wait for TUI response
+            controller.drain(timeout=0.6, quiet_period=0.2)
+            
+            # Heuristic: Check if the program terminated after keypress
+            # WinPTY self-terminates when the child exits
+            if hasattr(controller.pty, 'is_alive') and not controller.pty.is_alive():
+                 typer.echo("[*] Child process terminated.")
+                 break
+                 
+        typer.echo("[+] Auto-Session complete.")
+        
+    except Exception as e:
+        import traceback
+        typer.echo(f"[!] Auto-session failed: {e}")
+        traceback.print_exc()
+    finally:
+        controller.stop()
+
 if __name__ == "__main__":
     app()

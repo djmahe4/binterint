@@ -30,18 +30,84 @@ class SemanticAnalyzer:
         
     def extract_from_screen(self, text_content: str) -> List[Dict[str, Any]]:
         """
-        Naive rule-based extraction from text buffer.
+        Heuristic rule-based extraction from text buffer to find interactive elements.
         """
         import re
         elements = []
-        # Find buttons like [ Ok ]
-        for match in re.finditer(r'\[\s*([^\]]+?)\s*\]', text_content):
+        
+        # 1. Find explicit hotkey hints: Press 'q' or '1'
+        # Matches: 'q', '1', [q], (q), 1: 
+        hotkey_patterns = [
+            r"'([^'])'",              # Any single char in single quotes
+            r"\[([^\]])\]",          # [x]
+            r"\(([^\)])\)",          # (x)
+            r"(\d+):",               # 1:
+        ]
+        
+        for p in hotkey_patterns:
+            for match in re.finditer(p, text_content):
+                key = match.group(1)
+                elements.append({
+                    "type": "hotkey",
+                    "key": key,
+                    "label": f"Key {key}",
+                    "span": match.span()
+                })
+
+        # 2. Find buttons like [ Ok ]
+        for match in re.finditer(r'\[\s*([^\]]{2,})\s*\]', text_content):
+            label = match.group(1).strip()
+            # If the label itself contains a single char shortcut [O]k
+            shortcut_match = re.search(r'\[([A-Z0-9])\]', label, re.IGNORECASE)
+            key = shortcut_match.group(1) if shortcut_match else label[0].lower()
+            
             elements.append({
                 "type": "button",
-                "label": match.group(1),
-                "pos": match.span()
+                "label": label,
+                "key": key,
+                "span": match.span()
             })
+            
         return elements
+
+    def decide_next_action(self, text_content: str, goal: str = "", history: List[str] = None) -> Optional[str]:
+        """
+        Determines the next keystroke based on local heuristics.
+        """
+        elements = self.extract_from_screen(text_content)
+        if not elements:
+            return None
+            
+        history = history or []
+        goal_lower = goal.lower()
+        
+        # 1. Check for 'exit' or 'quit' if the goal mentions it and we have history
+        if ("exit" in goal_lower or "quit" in goal_lower) and len(history) > 1:
+            for el in elements:
+                label = el.get("label", "").lower()
+                if "exit" in label or "quit" in label or el["key"].lower() in ('q', 'x'):
+                    return el["key"]
+
+        # 2. Match goal keywords to labels
+        if goal:
+            goal_words = set(goal_lower.split())
+            for el in elements:
+                label_words = set(el.get("label", "").lower().split())
+                if goal_words & label_words:
+                    if el["key"] not in history[-2:]:
+                        return el["key"]
+
+        # 3. Non-exit actions (avoid 'q', 'exit' etc. until likely done)
+        non_exit_elements = [el for el in elements if el.get("key", "").lower() not in ('q', 'exit', 'x', '\x1b')]
+        if non_exit_elements:
+            # Pick the one we used least recently
+            for el in non_exit_elements:
+                if el["key"] not in history[-2:]:
+                    return el["key"]
+            return non_exit_elements[0]["key"]
+
+        # 4. Fallback to any available key
+        return elements[0]["key"]
 
     async def analyze_screenshot(self, image_path: str, cols: int = 80, rows: int = 24) -> List[DetectedElement]:
         """

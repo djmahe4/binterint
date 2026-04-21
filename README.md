@@ -6,10 +6,11 @@
 
 ## ✨ Key Features
 
+- **🤖 Autonomous Navigation**: New `auto` command that uses rule-based semantic analysis to navigate TUIs toward a goal without external APIs.
 - **🌐 OS-Independent PTY**: Seamlessly handles Pseudo-Terminals on both Windows (`pywinpty`) and Unix/macOS (`ptyprocess`).
+- **🛡️ Unicode Stability**: Automatic `PYTHONUTF8` injection ensures TUI stability and prevents encoding crashes on Windows.
 - **📸 Headless Rendering**: Custom PILLOW-based renderer that converts terminal buffer state to high-quality PNGs with **Roboto Mono** bundling.
-- **🧠 LLM Semantic Analysis**: Native integration with **Gemini 2.5 Flash** and **OpenAI GPT-5.4** for high-fidelity element detection using normalized spatial reasoning.
-- **🎯 Precise Targeting**: Mapping of detected UI elements (normalized 0-1000) directly back to terminal grid coordinates for programmatic interaction.
+- **🧠 Hybrid Semantic Analysis**: Combines fast local heuristics for hotkeys with optional **Gemini/OpenAI** Vision for complex spatial reasoning.
 - **🛠️ Developer First**: Pydantic-powered data validation and a clean CLI/Python API.
 
 ---
@@ -32,6 +33,14 @@ Run a TUI application headlessly and take a screenshot after it settles:
 
 ```bash
 binterint run "python sample_tui.py" --out screenshot.png --wait 2.0
+```
+
+### 🤖 Autonomous Mode
+
+Let `binterint` intelligently navigate the TUI to achieve a goal using rules and pattern matching:
+
+```bash
+binterint auto "python sample_tui.py" --goal "Click button 1 and exit"
 ```
 
 ### Interactive Mode

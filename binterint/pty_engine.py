@@ -62,6 +62,7 @@ class PtyEngine:
             
             p_env = (env or os.environ).copy()
             p_env["PYTHONIOENCODING"] = "utf-8"
+            p_env["PYTHONUTF8"] = "1"
             
             self.process = PtyBackend.spawn(
                 cmd_str,

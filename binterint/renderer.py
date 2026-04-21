@@ -37,11 +37,11 @@ class TerminalRenderer:
         # Dynamically calculate character dimensions based on font metrics
         if self.font:
             try:
-                bbox = self.font.getbbox("M")
-                self.char_width = bbox[2] - bbox[0]
-                self.char_height = bbox[3] - bbox[1]
+                self.char_width = int(self.font.getlength("M"))
+                ascent, descent = self.font.getmetrics()
+                self.char_height = ascent + descent
                 if self.char_height == 0:
-                    self.char_height = 20
+                    self.char_height = int(self.char_width * 2)
             except Exception:
                 self.char_width = 10
                 self.char_height = 20
@@ -128,7 +128,8 @@ class TerminalRenderer:
                         (x * self.char_width, y * self.char_height),
                         char.data,
                         font=self.font,
-                        fill=fg_color
+                        fill=fg_color,
+                        anchor="lt"
                     )
                     
         return image
