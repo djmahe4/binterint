@@ -11,11 +11,17 @@ if sys.platform != "win32":
         PtyBackend = None
 else:
     try:
-        from pywinpty import PtyProcess as PtyBackend
+        try:
+            from pywinpty import PtyProcess as PtyBackend
+            from pywinpty.enums import Backend
+        except ImportError:
+            from winpty import PtyProcess as PtyBackend
+            from winpty.enums import Backend
         _IMPORT_ERROR = None
     except Exception as e:
         PtyBackend = None
         _IMPORT_ERROR = str(e)
+        class Backend: ConPTY = 0; WinPTY = 1 # Dummy
 
 class PtyEngine:
     """
@@ -37,7 +43,7 @@ class PtyEngine:
             if sys.platform == "win32" and _IMPORT_ERROR:
                 err_msg += f" Import Error: {_IMPORT_ERROR}"
             raise RuntimeError(err_msg)
-            
+        
         spawn_env = os.environ.copy()
         if env:
             spawn_env.update(env)
@@ -48,12 +54,20 @@ class PtyEngine:
             del spawn_env["DISPLAY"]
             
         if sys.platform == "win32":
-            # pywinpty expects a command string, not a list, for some versions
-            cmd_str = " ".join(f'"{c}"' if " " in c else c for c in cmd)
+            # For Windows, we use winpty (Scraper backend) as it's more 
+            # robust for headless capture on most user environments.
+            # We force UTF-8 through environment variables.
+            import subprocess
+            cmd_str = cmd if isinstance(cmd, str) else subprocess.list2cmdline(cmd)
+            
+            p_env = (env or os.environ).copy()
+            p_env["PYTHONIOENCODING"] = "utf-8"
+            
             self.process = PtyBackend.spawn(
                 cmd_str,
                 dimensions=(self.rows, self.cols),
-                env=spawn_env
+                env=p_env,
+                backend=Backend.WinPTY
             )
         else:
             self.process = PtyBackend.spawn(
@@ -62,18 +76,24 @@ class PtyEngine:
                 env=spawn_env
             )
         
-    def read(self) -> str:
+    def read(self, size: int = 8192) -> str:
         """
-        Reads available output from the PTY.
+        Reads available output from the PTY. Normalizes Windows encoding artifacts.
         """
         if not self.process:
             return ""
         
         try:
+            raw = self.process.read(size)
             if sys.platform == "win32":
-                return self.process.read(4096)
-            else:
-                return self.process.read()
+                # WinPTY often translates ESC (0x1B) into visual arrows or other symbols.
+                # We normalize all known variants back to standard ESC.
+                # \u2190 is '←', \u2192 is '→', \u001b is the actual ESC.
+                raw = raw.replace('\u2190', '\x1b')
+                raw = raw.replace('\u2192', '\x1b')
+                # Some WinPTY versions might use \x1b directly or a different encoding.
+                return raw
+            return raw
         except (EOFError, IOError):
             return ""
             

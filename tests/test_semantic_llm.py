@@ -20,7 +20,10 @@ class TestSemanticLLM(unittest.IsolatedAsyncioTestCase):
         # Mock PIL image
         mock_img_open.return_value = MagicMock()
         
-        # Mock response
+        # Mock response (mocking generate_content as a coroutine if needed, 
+        # though semantic.py calls it as a standard method in current code)
+        # Actually semantic.py calls it synchronously: response = model.generate_content([prompt, img])
+        # So why the warning? Ah, the test method itself is async.
         mock_response = MagicMock()
         mock_response.text = json.dumps([
             {"type": "button", "label": "Submit", "x": 500, "y": 800, "confidence": 0.95}
@@ -37,7 +40,7 @@ class TestSemanticLLM(unittest.IsolatedAsyncioTestCase):
     @patch.dict(os.environ, {"OPENAI_API_KEY": "fake_openai_key"})
     @patch.dict(os.environ, {"GOOGLE_API_KEY": ""}) 
     @patch("builtins.open", new_callable=mock_open, read_data=b"fake_image_data")
-    @patch("openai.resources.chat.completions.Completions.create")
+    @patch("openai.resources.chat.completions.Completions.create", new_callable=MagicMock) # completions.create is sync in OpenAI 1.0+ but often mocked as async
     @patch("openai.OpenAI")
     async def test_analyze_with_openai_mock(self, mock_openai_class, mock_create, mock_file):
         # Mock client
