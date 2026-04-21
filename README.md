@@ -20,7 +20,15 @@
 Install directly from source:
 
 ```bash
+git clone https://github.com/djmahe4/binterint.git
+cd binterint
 pip install .
+```
+
+OR
+
+```bash
+pip install binterint
 ```
 
 ---
@@ -32,7 +40,7 @@ pip install .
 Run a TUI application headlessly and take a screenshot after it settles:
 
 ```bash
-binterint run "python sample_tui.py" --out screenshot.png --wait 2.0
+binterint run "python sample_tui.py" --output screenshot.png --wait 2.0
 ```
 
 ### 🤖 Autonomous Mode
