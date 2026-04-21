@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, patch, AsyncMock
+from unittest.mock import MagicMock, patch, mock_open
 import os
 import json
 from binterint.semantic import SemanticAnalyzer, DetectedElement
@@ -9,20 +9,22 @@ class TestSemanticLLM(unittest.IsolatedAsyncioTestCase):
         self.analyzer = SemanticAnalyzer()
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "fake_gemini_key"})
+    @patch("PIL.Image.open")
     @patch("google.generativeai.GenerativeModel")
     @patch("google.generativeai.configure")
-    async def test_analyze_with_gemini_mock(self, mock_configure, mock_model_class):
+    async def test_analyze_with_gemini_mock(self, mock_configure, mock_model_class, mock_img_open):
         # Setup mock model
         mock_model = MagicMock()
         mock_model_class.return_value = mock_model
+        
+        # Mock PIL image
+        mock_img_open.return_value = MagicMock()
         
         # Mock response
         mock_response = MagicMock()
         mock_response.text = json.dumps([
             {"type": "button", "label": "Submit", "x": 500, "y": 800, "confidence": 0.95}
         ])
-        # Model.generate_content is actually sync in the SDK for non-streaming? No, it depends.
-        # But our semantic.py calls it normally. 
         mock_model.generate_content.return_value = mock_response
 
         # Execute
@@ -34,9 +36,10 @@ class TestSemanticLLM(unittest.IsolatedAsyncioTestCase):
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "fake_openai_key"})
     @patch.dict(os.environ, {"GOOGLE_API_KEY": ""}) 
-    @patch("openai.resources.chat.completions.Completions.create") # More specific patch for OpenAI
+    @patch("builtins.open", new_callable=mock_open, read_data=b"fake_image_data")
+    @patch("openai.resources.chat.completions.Completions.create")
     @patch("openai.OpenAI")
-    async def test_analyze_with_openai_mock(self, mock_openai_class, mock_create):
+    async def test_analyze_with_openai_mock(self, mock_openai_class, mock_create, mock_file):
         # Mock client
         mock_client = MagicMock()
         mock_openai_class.return_value = mock_client
@@ -57,6 +60,7 @@ class TestSemanticLLM(unittest.IsolatedAsyncioTestCase):
         # Verify
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].type, "input")
+        mock_file.assert_called_with("fake_path.png", "rb")
 
     def test_map_to_grid(self):
         # 0-1000 normalized to 80x24 grid
