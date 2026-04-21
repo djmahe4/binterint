@@ -1,0 +1,3 @@
+include binterint/fonts/*.ttf
+include sample_tui.py
+include README.md
