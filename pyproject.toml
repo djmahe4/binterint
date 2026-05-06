@@ -47,6 +47,9 @@ llm = [
     "google-generativeai",
     "openai",
 ]
+mcp = [
+    "fastmcp>=3.0.0",
+]
 dev = [
     "pytest",
     "black",
@@ -55,6 +58,7 @@ dev = [
 
 [project.scripts]
 binterint = "binterint.cli:app"
+binterint-mcp = "binterint.mcp_server:run_mcp_server"
 
 [tool.setuptools.packages.find]
 where = ["."]
