@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "pybind11>=3.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "binterint"
-version = "0.1.1"
+version = "0.2.0"
 description = "Cross-Platform Headless TUI Automation Interaction Screenshot Utility with AI Semantic Analysis"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
     "Topic :: Software Development :: Testing",
     "Topic :: Terminals",
 ]
@@ -60,4 +61,4 @@ where = ["."]
 include = ["binterint*"]
 
 [tool.setuptools.package-data]
-binterint = ["fonts/*.ttf"]
+binterint = ["fonts/*.ttf", "_binterint_core*.so"]
