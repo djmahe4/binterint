@@ -14,7 +14,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 
 # ---------------------------------------------------------------------------
@@ -142,7 +142,7 @@ class TerminalBackend(ABC):
         """Tear down the backend and release all resources."""
 
     @abstractmethod
-    def poll_event(self) -> Optional[KeyEvent | MouseEvent]:
+    def poll_event(self) -> Optional[Union[KeyEvent, MouseEvent]]:
         """Return the next pending input event, or ``None`` if none is available.
 
         This method must be non-blocking.
