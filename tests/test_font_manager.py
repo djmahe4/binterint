@@ -2,7 +2,6 @@
 Tests for binterint.font_manager — FontManager, FontConfig, TextOrientation,
 HorizontalAlign, VerticalAlign, and TextBlock.
 """
-import os
 import pytest
 
 from binterint.font_manager import (
@@ -30,8 +29,9 @@ def default_cfg():
 @pytest.fixture
 def font_available():
     """Skip tests if bundled fonts are not present."""
-    font_dir = os.path.join(os.path.dirname(__file__), "..", "binterint", "fonts")
-    if not os.path.isfile(os.path.join(font_dir, "RobotoMono-Regular.ttf")):
+    from pathlib import Path
+    font_dir = Path(__file__).parent.parent / "binterint" / "fonts"
+    if not (font_dir / "RobotoMono-Regular.ttf").is_file():
         pytest.skip("Bundled fonts not present")
 
 

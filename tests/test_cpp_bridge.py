@@ -149,12 +149,12 @@ class TestTerminalEmulator:
 class TestFontEngine:
     @pytest.fixture
     def font_path(self):
-        import os
-        p = os.path.join(os.path.dirname(__file__), "..",
-                         "binterint", "fonts", "RobotoMono-Regular.ttf")
-        if not os.path.exists(p):
+        from pathlib import Path
+        p = (Path(__file__).parent.parent / "binterint" / "fonts"
+             / "RobotoMono-Regular.ttf")
+        if not p.exists():
             pytest.skip("RobotoMono-Regular.ttf not present")
-        return os.path.abspath(p)
+        return str(p)
 
     def test_load_font(self, font_path):
         fe = FontEngine()

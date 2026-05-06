@@ -94,8 +94,17 @@ void TerminalEmulator::sync_cell(int row, int col) {
 
     Cell cell;
 
-    // Character data: first non-zero code-point in the cell's chars[] array.
-    cell.char_data = (vcell.chars[0] != 0) ? cp_to_utf8(vcell.chars[0]) : " ";
+    // Character data: scan chars[] for the first non-zero code-point.
+    // A cell may contain a multi-codepoint grapheme cluster (e.g. combining
+    // characters), where chars[0] == 0 but chars[1] != 0 is theoretically
+    // impossible — libvterm always puts the base character at index 0 and
+    // combining characters at subsequent indices.  We take chars[0] as the
+    // primary glyph and fall back to a space if it is zero (empty cell).
+    uint32_t primary_cp = 0;
+    for (int i = 0; i < VTERM_MAX_CHARS_PER_CELL; ++i) {
+        if (vcell.chars[i] != 0) { primary_cp = vcell.chars[i]; break; }
+    }
+    cell.char_data = (primary_cp != 0) ? cp_to_utf8(primary_cp) : " ";
 
     // Colours — convert indexed/default colours to RGB first.
     VTermColor fg = vcell.fg;

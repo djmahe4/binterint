@@ -295,7 +295,7 @@ class FontManager:
 
         raise FontNotFoundError(
             f"Font '{family}' (weight='{weight}') not found bundled or on system. "
-            "Install a font or run: python -m binterint.font_manager --download"
+            "Please install a TrueType font or provide an absolute path via FontConfig."
         )
 
 
