@@ -3,6 +3,7 @@ Tests for binterint.event_bus and the three core plugins.
 """
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 from typing import List
@@ -356,3 +357,86 @@ class TestRendererPlugin:
         done = [e for e in watcher.events if e.type == EventType.RENDER_COMPLETE]
         assert len(done) == 1
         assert "path" in done[0].data
+
+
+# ---------------------------------------------------------------------------
+# InteractiveShellPlugin
+# ---------------------------------------------------------------------------
+
+class TestInteractiveShellPlugin:
+    def test_pty_data_writes_to_backend(self):
+        from binterint.plugins.interactive_shell import InteractiveShellPlugin
+
+        bus = EventBus()
+        backend = HeadlessBackend()
+        plugin = InteractiveShellPlugin(backend)
+        bus.register(plugin)
+
+        bus.emit(Event(EventType.PTY_DATA, "pty", {"text": "hello"}))
+        assert backend.written_output == ["hello"]
+
+    def test_screen_updated_emits_render_frame(self):
+        from binterint.plugins.interactive_shell import InteractiveShellPlugin
+
+        bus = EventBus()
+        watcher = RecordingPlugin("watcher", [EventType.RENDER_FRAME])
+        bus.register(watcher)
+
+        backend = HeadlessBackend()
+        plugin = InteractiveShellPlugin(backend)
+        bus.register(plugin)
+
+        bus.emit(Event(EventType.SCREEN_UPDATED, "pty", {"cols": 100, "rows": 30}))
+        frames = [e for e in watcher.events if e.type == EventType.RENDER_FRAME]
+        assert len(frames) == 1
+        assert frames[0].data["cols"] == 100
+
+    def test_input_loop_emits_key_and_mouse_events(self):
+        from binterint.plugins.interactive_shell import InteractiveShellPlugin
+
+        bus = EventBus()
+        key_watcher = RecordingPlugin("key_watcher", [EventType.KEY_PRESS])
+        mouse_watcher = RecordingPlugin("mouse_watcher", [EventType.MOUSE_EVENT])
+        bus.register(key_watcher)
+        bus.register(mouse_watcher)
+
+        backend = HeadlessBackend()
+        plugin = InteractiveShellPlugin(backend, poll_interval=0.0005)
+        bus.register(plugin)
+
+        backend.enqueue_event(KeyEvent(Key.CHAR, char="x"))
+        backend.enqueue_event(MouseEvent(MouseButton.LEFT, MouseAction.PRESS, 2, 3))
+
+        async def run_loop():
+            task = asyncio.create_task(plugin.input_loop())
+            await asyncio.sleep(0.01)
+            plugin.stop_input_loop()
+            await task
+
+        asyncio.run(run_loop())
+
+        key_events = [e for e in key_watcher.events if e.type == EventType.KEY_PRESS]
+        mouse_events = [e for e in mouse_watcher.events if e.type == EventType.MOUSE_EVENT]
+
+        assert len(key_events) >= 1
+        assert key_events[0].data["char"] == "x"
+        assert len(mouse_events) >= 1
+        assert mouse_events[0].data["x"] == 2
+        assert mouse_events[0].data["y"] == 3
+
+    def test_shutdown_stops_input_loop(self):
+        from binterint.plugins.interactive_shell import InteractiveShellPlugin
+
+        bus = EventBus()
+        backend = HeadlessBackend()
+        plugin = InteractiveShellPlugin(backend, poll_interval=0.0005)
+        bus.register(plugin)
+
+        async def run_loop_and_shutdown():
+            task = asyncio.create_task(plugin.input_loop())
+            await asyncio.sleep(0.005)
+            bus.emit(Event(EventType.SHUTDOWN, "test"))
+            await task
+
+        asyncio.run(run_loop_and_shutdown())
+        assert backend.poll_event() is None
