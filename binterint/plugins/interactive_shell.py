@@ -76,7 +76,7 @@ class InteractiveShellPlugin(TerminalPlugin):
     async def input_loop(self) -> None:
         """Poll backend input events and emit normalized bus events."""
         if not self._started:
-            raise RuntimeError("InteractiveShellPlugin must be registered before input_loop")
+            raise RuntimeError("InteractiveShellPlugin.input_loop() called before plugin registration. Call bus.register(plugin) first.")
 
         self._running = True
         while self._running:
